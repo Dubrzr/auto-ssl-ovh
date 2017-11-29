@@ -1,0 +1,17 @@
+{
+	"ovh_ids": {
+		"endpoint": "",
+		"app_key": "",
+		"app_secret": "",
+		"consumer_key": ""
+	},
+	"domains": [
+		{
+			"url": "mydomain.com",
+			"dns_entries": [
+				{"fieldType": "CNAME", "subDomain": "sub1", "target": "ipa"},
+				{"fieldType": "CNAME", "subDomain": "sub2", "target": "ipb"}
+			]
+		}
+	]
+}
