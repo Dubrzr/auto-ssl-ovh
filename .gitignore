@@ -1,2 +1,7 @@
 conf.json
-
+*.key
+*.csr
+*.crt
+*.pem
+certificates/
+__pycache__/
