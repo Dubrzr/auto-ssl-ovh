@@ -1,5 +1,8 @@
 import os
 import json
+from multiprocessing import Pool
+import time
+
 import ovh
 import ovh.exceptions   
 
@@ -83,7 +86,7 @@ class OvhClient:
         self._client.post('/domain/zone/{}/refresh'.format(zone))
         print("Refreshed zone {}".format(zone))
 
-    def add_record(self, zone, subDomain, fieldType, target, ttl=0):
+    def add_record(self, zone, subDomain, fieldType, target, ttl=0, refresh=True):
         zone_mappings = self.get_zone_mappings(zone)
 
         if subDomain not in zone_mappings:
@@ -95,15 +98,15 @@ class OvhClient:
                    ttl=ttl)
         else:
             if zone_mappings[subDomain]['fieldType'] != fieldType:
-                self.delete_record(zone, subDomain)
-                return self.add_record(zone, subDomain, fieldType, target, ttl)
+                self.delete_record(zone, subDomain, refresh)
+                return self.add_record(zone, subDomain, fieldType, target, ttl, refresh)
 
             record_id = zone_mappings[subDomain]['id']
             self._client.put('/domain/zone/{}/record/{}'.format(zone, record_id),
                    target=target,
                    ttl=ttl)
-
-        self.refresh_zone(zone)
+        if refresh:
+            self.refresh_zone(zone)
 
     def update_record(self, zone, subDomain, fieldType, target, ttl=0):
         # Returns True if it updated the record, False otherwise
@@ -123,13 +126,12 @@ class OvhClient:
                     fieldType=fieldType,
                     target=target,
                     ttl=ttl)
+            if refresh:
+                self.refresh_zone(zone)
             return True
         return False
 
-        self.refresh_zone(zone)
-
-
-    def delete_record(self, zone, subDomain):
+    def delete_record(self, zone, subDomain, refresh=True):
         zone_mappings = self.get_zone_mappings(zone)
 
         if subDomain not in zone_mappings:
@@ -139,8 +141,8 @@ class OvhClient:
         self._client.delete('/domain/zone/{}/record/{}'.format(zone, record_id))
 
         del self._cache[zone][subDomain]
-
-        self.refresh_zone(zone)
+        if refresh:
+            self.refresh_zone(zone)
 
 
 
@@ -154,7 +156,11 @@ ovh_client = OvhClient(
 #ovh_client.add_record('fgh.ovh', 'test.j1', 'TXT', '"zzzzz"')
 ovh_client.create_and_update_domains(conf['domains'])
 
-for certificate in conf['certificates']:
+def apply(certificate):
+    if 'last_update' in certificate:
+        if time.time() - certificate['last_update'] < certificate['ttl']:
+            return certificate
+
     acme = ACMEclient(certificate['cn'],
             dns_class=OVHDns(ovh_client),
             domain_alt_names=certificate['alt_names'],
@@ -162,7 +168,7 @@ for certificate in conf['certificates']:
             account_key=None,
             bits=4096,
             digest='sha256',
-            ACME_CHALLENGE_WAIT_PERIOD=60)
+            ACME_CHALLENGE_WAIT_PERIOD=1)
 
     certificate = acme.cert()
     certificate_key = acme.certificate_key
@@ -173,6 +179,16 @@ for certificate in conf['certificates']:
 
     with open('certificates/{}.key'.format(certificate['name']), 'w') as certificate_key_file:
         certificate_key_file.write(certificate_key)
+
+    certificate['last_update'] = time.time()
+    return certificate
+
+with Pool(len(conf['certificates'])) as p:
+    conf['certificates'] = p.map(apply, conf['certificates'])
+
+with open('data.txt', 'w') as outfile:
+    json.dump(conf, 'conf.json')
+
 
 
     # 2. to renew a certificate:

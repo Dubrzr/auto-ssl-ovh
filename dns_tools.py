@@ -4,6 +4,11 @@ import dns.resolver
 import time
 import sys
 
+my_resolver = dns.resolver.Resolver()
+
+my_resolver.nameservers = ['10.176.208.153']
+
+
 class BaseDns(object):
     def __init__(self):
         self.dns_provider_name = None
@@ -38,13 +43,15 @@ class OVHDns(BaseDns):
         print("NS lookups until {} DNS record is found".format(subDomain + '.' + zone), end='')
         sys.stdout.flush()
 
-        timeout = 600
+        timeout = 1200
         t = datetime.now()
         while True:
             try:
-                answers = dns.resolver.query(subDomain + '.' + zone, 'TXT')
+                answers = my_resolver.query(subDomain + '.' + zone, 'TXT')
             except dns.resolver.NXDOMAIN:
                 answers = []
+            if len(answers)> 0:
+                print(answers[0])
             if len(answers) > 0 and answers[0] == target:
                 break
             if timedelta.total_seconds(datetime.now() - t) > timeout:

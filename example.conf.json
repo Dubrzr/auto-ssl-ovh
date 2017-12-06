@@ -13,5 +13,8 @@
 				{"fieldType": "CNAME", "subDomain": "sub2", "target": "ipb"}
 			]
 		}
+	],
+	"certificates": [
+		{"name": "mydomain", "cn": "mydomain.com", "alt_names": ["sub1.mydomain.com", "sub2.mydomain.com"], "ttl": 7776000}
 	]
 }
