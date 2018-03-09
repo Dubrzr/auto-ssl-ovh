@@ -6,7 +6,7 @@ import sys
 
 my_resolver = dns.resolver.Resolver()
 
-my_resolver.nameservers = ['10.176.208.153']
+my_resolver.nameservers = ['8.8.4.4'] #'10.176.208.153']
 
 
 class BaseDns(object):
